@@ -1,0 +1,154 @@
+name: Deploy Task Manager to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ─── Step 1: Checkout code ────────────────────────────────────
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ─── Step 2: Run tests ────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: cd backend && npm ci
+
+      - name: Run Tests
+        run: cd backend && npm test
+        # Pipeline STOPS here if any test fails — bad code never reaches EC2
+
+      # ─── Step 3: Build Docker image and push to ECR ───────────────
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Docker Image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: task-manager-api
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag  $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                      $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "IMAGE_TAG=$IMAGE_TAG"       >> $GITHUB_ENV
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+
+      # ─── Step 4: Copy ALL config files to EC2 ────────────────────
+      # Replaces the manual SCP step completely.
+      # First deploy: creates folder + copies everything
+      # Future deploys: updates configs if anything changed
+      - name: Copy config files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml,nginx/,monitoring/"
+          target: "/home/ec2-user/task-manager"
+          overwrite: true
+
+      # ─── Step 5: Install Docker on EC2 (safe to run multiple times) ──
+      # Idempotent — installs on first deploy, skips on future deploys
+      - name: Setup EC2 (install Docker if not already installed)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            if ! command -v docker &> /dev/null; then
+              sudo yum update -y
+              sudo yum install -y docker
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker ec2-user
+              echo "Docker installed."
+            else
+              echo "Docker already installed, skipping."
+            fi
+
+            if ! command -v docker-compose &> /dev/null; then
+              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+                -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+              echo "Docker Compose installed."
+            else
+              echo "Docker Compose already installed, skipping."
+            fi
+
+            if ! command -v aws &> /dev/null; then
+              sudo yum install -y awscli
+              echo "AWS CLI installed."
+            else
+              echo "AWS CLI already installed, skipping."
+            fi
+
+      # ─── Step 6: Deploy on EC2 ────────────────────────────────────
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_TAG,ECR_REGISTRY
+          script: |
+            CURRENT=$(docker inspect task-manager-app \
+              --format='{{index .Config.Image}}' 2>/dev/null || echo "none")
+            echo "PREVIOUS_IMAGE=$CURRENT" > /home/ec2-user/previous_deploy.env
+
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+              docker login --username AWS --password-stdin $ECR_REGISTRY
+
+            cd /home/ec2-user/task-manager
+            echo "APP_IMAGE=$ECR_REGISTRY/task-manager-api:$IMAGE_TAG" > .env
+
+            docker pull $ECR_REGISTRY/task-manager-api:$IMAGE_TAG
+            docker-compose --env-file .env up -d
+
+            sleep 15
+
+      # ─── Step 7: Health check + automatic rollback ────────────────
+      - name: Health Check and Rollback if Failed
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health)
+
+            if [ "$STATUS" -ne "200" ]; then
+              echo "Health check FAILED (got $STATUS). Rolling back..."
+              source /home/ec2-user/previous_deploy.env
+
+              if [ "$PREVIOUS_IMAGE" != "none" ]; then
+                cd /home/ec2-user/task-manager
+                echo "APP_IMAGE=$PREVIOUS_IMAGE" > .env
+                docker-compose --env-file .env up -d
+                echo "ROLLBACK COMPLETE"
+              fi
+              exit 1
+            else
+              echo "Health check PASSED. Deployment successful!"
+            fi
