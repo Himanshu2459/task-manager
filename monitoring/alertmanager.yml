@@ -1,7 +1,7 @@
 global:
   resolve_timeout: 5m
   # Get this from: Slack → Apps → Incoming Webhooks
-  slack_api_url: "https://hooks.slack.com/services/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"    # ← Replace this
+  slack_api_url: "${SLACK_WEBHOOK_URL}"    # ← Replace this
 
 route:
   group_by: ['alertname']
