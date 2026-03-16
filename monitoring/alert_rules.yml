@@ -1,0 +1,30 @@
+groups:
+  - name: task-manager-alerts
+    rules:
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU Usage on EC2"
+          description: "CPU usage is above 80% for more than 2 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP Error Rate"
+          description: "More than 5% of requests are failing."
+
+      - alert: AppDown
+        expr: up{job="task-manager-app"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application Down"
+          description: "Task Manager API is not responding."
