@@ -129,6 +129,9 @@ jobs:
 
             docker pull $ECR_REGISTRY/task-manager-api:$IMAGE_TAG
             docker-compose --env-file .env up -d
+            
+            # Restart Nginx to flush its DNS cache of the backend container IP
+            docker-compose restart nginx
 
             sleep 15
 
