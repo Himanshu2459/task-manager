@@ -108,11 +108,13 @@ jobs:
       # ─── Step 6: Deploy on EC2 ────────────────────────────────────
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE_TAG,ECR_REGISTRY
+          envs: IMAGE_TAG,ECR_REGISTRY,SLACK_WEBHOOK_URL
           script: |
             CURRENT=$(docker inspect task-manager-app \
               --format='{{index .Config.Image}}' 2>/dev/null || echo "none")
@@ -123,6 +125,7 @@ jobs:
 
             cd /home/ec2-user/task-manager
             echo "APP_IMAGE=$ECR_REGISTRY/task-manager-api:$IMAGE_TAG" > .env
+            echo "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL" >> .env
 
             docker pull $ECR_REGISTRY/task-manager-api:$IMAGE_TAG
             docker-compose --env-file .env up -d
@@ -132,10 +135,13 @@ jobs:
       # ─── Step 7: Health check + automatic rollback ────────────────
       - name: Health Check and Rollback if Failed
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: SLACK_WEBHOOK_URL
           script: |
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health)
 
@@ -146,6 +152,7 @@ jobs:
               if [ "$PREVIOUS_IMAGE" != "none" ]; then
                 cd /home/ec2-user/task-manager
                 echo "APP_IMAGE=$PREVIOUS_IMAGE" > .env
+                echo "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL" >> .env
                 docker-compose --env-file .env up -d
                 echo "ROLLBACK COMPLETE"
               fi
