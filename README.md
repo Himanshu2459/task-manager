@@ -11,6 +11,9 @@ Deployed a full CI/CD pipeline with monitoring & alerting on AWS.
 * Nginx
 
 📊 Features:
+<img width="1883" height="936" alt="Screenshot (817)" src="https://github.com/user-attachments/assets/b884e7e0-4e76-486c-8eb9-fe42c347deef" />
+
+<img width="1904" height="954" alt="Screenshot (814)" src="https://github.com/user-attachments/assets/dce65d9b-0b13-4683-be7f-76cd1e90a048" />
 
 * Real-time dashboards (CPU, latency, error rate)
 * Automated deployment pipeline
