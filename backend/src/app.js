@@ -42,6 +42,23 @@ let nextId = 1;
 
 // ─── Routes ───────────────────────────────────────────────────
 
+// Default frontend / root route
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>Task Manager API</title>
+        <style>body { font-family: sans-serif; text-align: center; margin-top: 50px; }</style>
+      </head>
+      <body>
+        <h1>🚀 Task Manager API Server is Running!</h1>
+        <p>Use the <code>/tasks</code> endpoint to interact with the API.</p>
+        <p><a href="/health">System Health</a> | <a href="/tasks">View Tasks</a></p>
+      </body>
+    </html>
+  `);
+});
+
 // Health check — used by the CI/CD pipeline rollback system
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
