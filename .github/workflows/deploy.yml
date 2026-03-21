@@ -110,11 +110,13 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE_TAG,ECR_REGISTRY,SLACK_WEBHOOK_URL
+          envs: IMAGE_TAG,ECR_REGISTRY,SLACK_WEBHOOK_URL,GMAIL_ADDRESS,GMAIL_APP_PASSWORD
           script: |
             CURRENT=$(docker inspect task-manager-app \
               --format='{{index .Config.Image}}' 2>/dev/null || echo "none")
@@ -126,6 +128,8 @@ jobs:
             cd /home/ec2-user/task-manager
             echo "APP_IMAGE=$ECR_REGISTRY/task-manager-api:$IMAGE_TAG" > .env
             echo "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL" >> .env
+            echo "GMAIL_ADDRESS=$GMAIL_ADDRESS" >> .env
+            echo "GMAIL_APP_PASSWORD=$GMAIL_APP_PASSWORD" >> .env
 
             docker pull $ECR_REGISTRY/task-manager-api:$IMAGE_TAG
             docker-compose --env-file .env up -d

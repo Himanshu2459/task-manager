@@ -94,7 +94,10 @@ services:
       - /bin/sh
       - -c
       - |
-        sed "s|SLACK_WEBHOOK_URL|$$SLACK_WEBHOOK_URL|g" /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml
+        sed "s|SLACK_WEBHOOK_URL|$$SLACK_WEBHOOK_URL|g" /etc/alertmanager/alertmanager.yml \
+          | sed "s|GMAIL_ADDRESS|$$GMAIL_ADDRESS|g" \
+          | sed "s|GMAIL_APP_PASSWORD|$$GMAIL_APP_PASSWORD|g" \
+          > /tmp/alertmanager.yml
         /bin/alertmanager --config.file=/tmp/alertmanager.yml
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
