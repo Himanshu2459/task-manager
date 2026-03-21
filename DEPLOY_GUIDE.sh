@@ -191,21 +191,26 @@ git push origin main
 # Title: Error Rate %
 
 # ═══════════════════════════════════════════════════════════════
-# PHASE 9 — ALERTMANAGER + SLACK
+# PHASE 9 — ALERTMANAGER + SLACK + GMAIL
 # ═══════════════════════════════════════════════════════════════
 
 # Step 17: Create Slack Webhook
 # 1. Go to https://api.slack.com/apps
-# 2. Create New App → From Scratch
-# 3. Add Incoming Webhooks feature → Activate
-# 4. Add to Workspace → Choose channel #alerts
-# 5. Copy the Webhook URL
+# 2. Incoming Webhooks → Activate → Add to Workspace → Select #alerts
+# 3. Copy the Webhook URL
 
-# Step 18: Update alertmanager.yml
-# Replace YOUR_SLACK_WEBHOOK_URL with the URL from Step 17
-# Replace #alerts with your actual Slack channel name
+# Step 18: Create Gmail App Password
+# 1. Gmail Account → Security → 2-Step Verification → App Passwords
+# 2. Select App: "Other" → Name: "Alertmanager" → Create
+# 3. Copy the 16-character password
 
-# Restart alertmanager:
+# Step 19: Add Secrets to GitHub
+# GMAIL_ADDRESS      → your_email@gmail.com
+# GMAIL_APP_PASSWORD → the 16-char code from Step 18
+# SLACK_WEBHOOK_URL  → the URL from Step 17
+
+# Step 20: Restart alertmanager on EC2
+# (CD will handle this automatically on next push, but for manual restart:)
 docker-compose restart alertmanager
 
 # ═══════════════════════════════════════════════════════════════
