@@ -13,7 +13,7 @@ route:
 receivers:
   - name: 'slack-alerts'
     slack_configs:
-      - channel: '#alerts'                   # ← Your Slack channel
+      - channel: '#alert'                   # ← Your Slack channel
         username: 'AlertManager'
         icon_emoji: ':rotating_light:'
         title: '[{{ .Status | toUpper }}] {{ .CommonAnnotations.summary }}'
