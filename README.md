@@ -149,8 +149,6 @@ Deployed a full CI/CD pipeline with monitoring & alerting on AWS.
 <text x="340" y="410" text-anchor="middle" opacity="0.4" style="fill:rgb(194, 192, 182);stroke:none;color:rgb(255, 255, 255);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:0.4;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:12px;font-weight:400;text-anchor:middle;dominant-baseline:auto">Click any node to learn more</text>
 </svg>cd_pipeline.svg…]()
 
-🌐 Live Demo:
-http://13.232.26.112/health
 
 This project helped me understand real-world DevOps concepts like:
 ✔ Stateless vs Stateful systems
